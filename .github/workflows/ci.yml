@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  flake8-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install flake8
+      - name: Run Flake8
+        run: flake8 .
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432 # Expose the port PostgreSQL is listening on to the host
+        options: >- # Use the options field to customize the startup command
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Build the Docker Image
+        run: docker-compose build test
+      - name: Start PostgreSQL
+        run: |
+          # The PostgreSQL service is already started, so this step can be used for additional setup if necessary.
+          echo "PostgreSQL is running on port 5432"
+      - name: Start Odoo with Testing
+        run: docker-compose up -d odoo
+      - name: Execute Tests
+        run: docker-compose run --rm test
+
