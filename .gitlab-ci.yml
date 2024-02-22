@@ -1,0 +1,63 @@
+stages:
+  - lint
+  - test
+  - deploy
+
+variables:
+  POSTGRES_DB: postgres
+  POSTGRES_USER: odoo
+  POSTGRES_PASSWORD: odoo
+
+lint:
+  image: python:3.8
+  stage: lint
+  script:
+    - pip install flake8
+    - flake8 .
+
+test:
+  image: docker:19.03.12
+  services:
+    - docker:dind
+  stage: test
+  before_script:
+    - apk update && apk add --no-cache docker-cli
+  script:
+    # Start the PostgreSQL container
+    - >
+      docker run -d --name "${CI_COMMIT_REF_SLUG}_db"
+      -e POSTGRES_DB=${POSTGRES_DB}
+      -e POSTGRES_USER=${POSTGRES_USER}
+      -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      postgres:13
+    # Build the application image (if applicable)
+    - >
+      docker build -t "${CI_COMMIT_REF_SLUG}_app" .
+    # Start the application container (example)
+    - >
+      docker run -d --name "${CI_COMMIT_REF_SLUG}_odoo"
+      --link "${CI_COMMIT_REF_SLUG}_db":db
+      -p 8070:8069
+      -v odoo-data:/var/lib/odoo
+      -v ./config:/etc/odoo
+      -v ./addons:/mnt/extra-addons
+      "${CI_COMMIT_REF_SLUG}_app"
+    # Execute your tests
+    - >
+      docker run --rm
+      --link "${CI_COMMIT_REF_SLUG}_db":db
+      "${CI_COMMIT_REF_SLUG}_app" <command-to-run-tests>
+  after_script:
+    - docker stop "${CI_COMMIT_REF_SLUG}_db" "${CI_COMMIT_REF_SLUG}_odoo"
+    - docker rm "${CI_COMMIT_REF_SLUG}_db" "${CI_COMMIT_REF_SLUG}_odoo"
+
+deploy:
+  image: docker:19.03.12
+  stage: deploy
+  services:
+    - docker:dind
+  only:
+    - main
+  script:
+    - echo "Deployment commands go here"
+

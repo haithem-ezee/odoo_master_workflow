@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  odoo:
+    build:
+      context: .
+      args:
+        # Liste de toutes les commandes et valeurs passées au build Docker d'Odoo.
+        CLI_COMMANDS: ${DEV_CMD} ${DEV_VALUE} ${ADDONS_PATH_CMD} ${ADDONS_PATH_VALUE} ${HOST_CMD} ${POSGRES_CONTAINER_NAME} ${MEMORY_LIMIT_SOFT_CMD} ${MEMORY_LIMIT_SOFT_VALUE} ${MEMORY_LIMIT_HARD_CMD} ${MEMORY_LIMIT_HARD_VALUE} ${DB_MAX_CON_CMD} ${DB_MAX_CON_VALUE} ${REQUEST_LIMIT_CMD} ${REQUEST_LIMIT_VALUE} ${TIME_CPU_LIMIT_CMD} ${TIME_CPU_LIMIT_VALUE} ${TIME_REAL_LIMIT_CMD} ${TIME_REAL_LIMIT_VALUE} ${LOG_HANDLER_CMD} ${LOG_HANDLER_VALUE} ${LOG_LEVEL_CMD} ${LOG_LEVEL_VALUE} ${MAX_CRON_THREAD_CMD} ${MAX_CRON_THREAD_VALUE} ${SERVER_WIDE_MODULES_CMD} ${SERVER_WIDE_MODULES_VALUE} ${WITHOUT_DEMO_CMD} ${WITHOUT_DEMO_VALUE} ${WORKERS_CMD} ${WORKERS_VALUE} ${SAVE_CMD}
+    container_name: ${ODOO_CONTAINER_NAME}
+    depends_on:
+      - postgres
+    expose:
+      - ${EXPOSED_PORT}
+    ports:
+      - ${SSH_PORTS}
+      - ${ENGINE_PORTS}
+    tty: true
+    volumes:
+      - data:${DATA}
+      - type: ${LOG_TYPE}
+        source: ${LOG_SOURCE}
+        target: ${LOG_TARGET}
+      - type: ${CONFIG_TYPE}
+        source: ${CONFIG_SOURCE}
+        target: ${CONFIG_TARGET}
+      - type: ${ADDONS_TYPE}
+        source: ${ADDONS_SOURCE}
+        target: ${ADDONS_TARGET}
+    environment:
+      TZ: Europe/Paris
+      HOST: ${POSGRES_CONTAINER_NAME}
+      USER: ${ODOO_DB_USER}
+      PASSWORD: ${ODOO_DB_PASSWORD}
+    restart: unless-stopped
+
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    container_name: ${POSGRES_CONTAINER_NAME}
+    restart: unless-stopped
+    expose:
+      - "5432"
+    ports:
+      - "5432:5432"
+    environment:
+      TZ: Europe/Paris
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_USER: odoo
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:${POSGRES_DATA}
+
+  adminer:
+    image: adminer
+    container_name: blm_odoo_adminer
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Paris
+    expose:
+      - "8080"
+    ports:
+      - 8080:8080
+
+volumes:
+  postgres_data:
+  data:
+  log:
+
